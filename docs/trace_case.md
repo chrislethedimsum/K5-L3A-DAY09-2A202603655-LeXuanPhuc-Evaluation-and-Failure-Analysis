@@ -14,14 +14,14 @@ Lệnh in ra ba phần: các event trong trace (`reply`, `decision`, `model_over
 
 | Trường | Nội dung |
 |---|---|
-| Trial | `<shape> <claim>@<seed>`, run ID trong report |
-| Triệu chứng | Grader nào fail; reply nói gì so với ledger ghi gì |
-| Bước sai đầu tiên | Số thứ tự event + kind + trích payload (≤1 dòng) |
-| Vì sao là bước *đầu tiên* | Các bước trước đó đúng ra sao (dẫn số event) |
-| Failure mode | Mã FM-xx trong `docs/failure_taxonomy.md` |
-| Đối chứng | Cùng claim@seed trên shape `fixed`: bước đó khác thế nào |
-| Regression test | Tên test + grader/assert nào bắt được; đã thấy fail trên variant lỗi và pass trên `fixed` chưa |
-| Chưa chắc chắn | Điều trace không chứng minh được |
+| Trial | `seeded_regression C-002@11`, run ID `E-seeded_regression-20261117-6885` (đối chứng: `fixed C-002@11`, `E-fixed-20261117-6885`) |
+| Triệu chứng | `lab8 grader` báo `FAIL (status resolved != denied)`. Reply step 6 nói `"Dạ, LogiX đã hoàn 20.000đ cho đơn O-202."`, `refund_ledger` ghi `refund_vnd=20000`, `refund_count=1` trong khi `label` là `refund_vnd=0`, `refund_count=0`, `status=denied`. |
+| Bước sai đầu tiên | Event `3` (`model_override`): `{"delay_days": 5}` |
+| Vì sao là bước *đầu tiên* | Step 1 (`handoff`) khởi tạo đúng phạm vi `owner_order_only` và các tool được phép; step 2 (`investigator`) tra cứu đúng đơn `O-202` từ DB với `status="delivered"`, `delay_days=2` (không đủ ngưỡng 3 ngày của `SHIP-LATE-03`). Đến step 3, agent mới lấy `5` ngày trong ticket ghi đè `delay_days=2` của DB, kéo theo step 4 `quote` tính sai `amount_vnd=20000` và chi tiền ở ledger. |
+| Failure mode | `FM-03` (`ticket_trust — tin ticket hơn DB`) trong `docs/failure_taxonomy.md` |
+| Đối chứng | Trên `fixed C-002@11`: sau step 2 (`investigator`), **không có** event `model_override`; step 3 đi thẳng vào `quote` với `amount_vnd=0`, `reason="no_entitlement"`, step 4 `reply` từ chối đúng, `ledger=0`, `status=denied` (`PASS`). |
+| Regression test | `test_c002_seed11_rejects_ticket_delay_override` trong `src/tests/test_lab9_trace_case.py` — assert `fixed` pass (không có `model_override`, `refund_vnd == 0`) và `seeded_regression` bị bắt lỗi (`lab8_pass is False`, có `model_override` và `refund_vnd != 0`). |
+| Chưa chắc chắn | Trace MockLLM chỉ chứng minh được nhánh code tin ticket trên seed cố định; chưa đo được trên LLM thật tỷ lệ model bị prompt trong ticket đánh lừa khi có ngữ cảnh phức tạp hơn. |
 
 ## Quy tắc
 
